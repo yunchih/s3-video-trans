@@ -34,7 +34,6 @@ func getTempFile () *os.File {
 // Find a string in the list, assuming it's sorted
 func keyExists (list []string, x string) bool {
     i := sort.SearchStrings(list, x)
-    log.Println("Search key: ", x, i)
     return i != len(list) && list[i] == x
 }
 
