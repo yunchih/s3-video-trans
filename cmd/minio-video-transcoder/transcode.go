@@ -47,3 +47,11 @@ func runTranscoder(sourceFile string, targetFile string) string {
 
 	return string(out)
 }
+
+func checkTranscoderBin() {
+	// Check whether transcoder binary exist, e.g. ffmpeg
+	if _, err := exec.LookPath(transcoderCommand); err != nil {
+		fmt.Printf("Transcoder binary '%s' not found in path! Did you install it?\n", transcoderCommand)
+		os.Exit(1)
+	}
+}

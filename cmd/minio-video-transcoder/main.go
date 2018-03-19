@@ -87,6 +87,9 @@ func main() {
 		dumpTranscoder = true
 	}
 
+	// Check whether transcoder binary exist, e.g. ffmpeg
+	checkTranscoderBin()
+
 	minioEndpoint := env.Get("MINIO_ENDPOINT")
 	minioAccessID := env.Get("MINIO_ID")
 	minioAccessKey := env.Get("MINIO_KEY")
