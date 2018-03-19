@@ -65,3 +65,7 @@ func (m *Minio) List(bucket string) (s3.Objects, error) {
 
     return result, nil
 }
+
+func (m *Minio) Remove (bucket string, obj string) error {
+    return m.client.RemoveObject(bucket, obj)
+}
