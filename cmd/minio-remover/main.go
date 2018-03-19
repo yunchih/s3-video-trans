@@ -1,41 +1,42 @@
 package main
 
 import (
-    "fmt"
-    "log"
-    "os"
+	"fmt"
+	"log"
+	"os"
 
-    "github.com/yunchih/s3-video-trans/pkg/minio"
-    "github.com/yunchih/s3-video-trans/pkg/s3"
-    "github.com/yunchih/s3-video-trans/pkg/env"
+	"github.com/yunchih/s3-video-trans/pkg/env"
+	"github.com/yunchih/s3-video-trans/pkg/minio"
+	"github.com/yunchih/s3-video-trans/pkg/s3"
 )
-func main () {
-    if len(os.Args) < 2 {
-        fmt.Println("Please provide filename to be uploaded")
-        os.Exit(1)
-    }
 
-    minioEndpoint  := env.Get("MINIO_ENDPOINT")
-    minioAccessID  := env.Get("MINIO_ID")
-    minioAccessKey := env.Get("MINIO_KEY")
-    minioUseSSL    := env.GetBool("MINIO_USESSL")
-    minioBucket    := env.Get("MINIO_BUCKET")
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Please provide filename to be uploaded")
+		os.Exit(1)
+	}
 
-    if minioEndpoint == "" || minioAccessID == "" || minioAccessKey == "" || minioBucket == "" {
-        os.Exit(1)
-    }
+	minioEndpoint := env.Get("MINIO_ENDPOINT")
+	minioAccessID := env.Get("MINIO_ID")
+	minioAccessKey := env.Get("MINIO_KEY")
+	minioUseSSL := env.GetBool("MINIO_USESSL")
+	minioBucket := env.Get("MINIO_BUCKET")
 
-    cfg := s3.Config{minioEndpoint, minioAccessID, minioAccessKey, minioUseSSL}
-    mc, err := minio.New(cfg)
-    if err != nil {
-        log.Fatal(err)
-    }
+	if minioEndpoint == "" || minioAccessID == "" || minioAccessKey == "" || minioBucket == "" {
+		os.Exit(1)
+	}
 
-    target := os.Args[1]
+	cfg := s3.Config{minioEndpoint, minioAccessID, minioAccessKey, minioUseSSL}
+	mc, err := minio.New(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    if err := mc.Remove(minioBucket, target); err != nil {
-        log.Fatal(err)
-    }
+	target := os.Args[1]
 
-    fmt.Printf("Successfully remove object %s\n", target)
+	if err := mc.Remove(minioBucket, target); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Successfully remove object %s\n", target)
 }
