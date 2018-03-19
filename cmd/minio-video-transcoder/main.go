@@ -9,9 +9,10 @@ import (
     "strings"
     "time"
 
+    "github.com/yunchih/s3-video-trans/pkg/env"
     "github.com/yunchih/s3-video-trans/pkg/minio"
     "github.com/yunchih/s3-video-trans/pkg/s3"
-    "github.com/yunchih/s3-video-trans/pkg/env"
+    "github.com/yunchih/s3-video-trans/pkg/worker"
 )
 
 var helpMsg = `
@@ -20,7 +21,10 @@ var helpMsg = `
 
       Required commandline arguments:
           -days=N: Transcode video objects whose last modification time is
-                   N days until now
+                   N days until now (the value can be any positive real number)
+
+      Optional commandline arguments:
+          -workers=N: The number of transcoding worker threads (default to 1)
 
       Required environment variables:
           MINIO_ENDPOINT: The URL of minio server (with port)
@@ -30,7 +34,7 @@ var helpMsg = `
           MINIO_BUCKET: Name of target bucket
 `
 
-func process (mc *minio.Minio, minioBucket string, objKey string) {
+func process (mc *minio.Minio, minioBucket string, objKey string, dumpTranscoder bool) {
     tmpSrc := getTempFile()
     defer os.Remove(tmpSrc.Name())
 
@@ -43,9 +47,10 @@ func process (mc *minio.Minio, minioBucket string, objKey string) {
     defer os.Remove(tmpDst.Name())
     log.Printf("Transcoding object '%s'\n", objKey)
     transcoderOutput := runTranscoder(tmpSrc.Name(), tmpDst.Name())
+    runTranscoder(tmpSrc.Name(), tmpDst.Name())
 
     transcoded := renamePrefix + objKey
-    log.Printf("Loading transcoded object to '%s'\n", transcoded)
+    log.Printf("Uploading transcoded object to '%s'\n", transcoded)
     if err := mc.Upload(minioBucket, transcoded, tmpDst); err != nil {
         log.Fatal(err)
     }
@@ -53,7 +58,9 @@ func process (mc *minio.Minio, minioBucket string, objKey string) {
     tmpSrc.Close()
     tmpDst.Close()
 
-    log.Print(transcoderOutput)
+    if dumpTranscoder {
+        log.Print(transcoderOutput)
+    }
 }
 
 func help() {
@@ -65,6 +72,9 @@ func help() {
 
 func main () {
     backInDays := flag.Float64("days", -1.0, "The range in days that we look back to search for possible targets")
+    workers    := flag.Int64("workers", 1, "The number of transcoding worker threads (default to 1)")
+    dump       := flag.String("dump", "no", "Whether or not to dump transcoder output")
+
     flag.Parse()
 
     if *backInDays < 0.0 {
@@ -72,6 +82,10 @@ func main () {
         help()
     }
 
+    dumpTranscoder := false
+    if *dump != "no" {
+        dumpTranscoder = true
+    }
 
     minioEndpoint  := env.Get("MINIO_ENDPOINT")
     minioAccessID  := env.Get("MINIO_ID")
@@ -110,6 +124,8 @@ func main () {
         }
     }
 
+    worker := worker.NewWorker(*workers)
+
     // Don't transcode those older than what we specified via '-days' flag
     unixTimeLowerBound := time.Now().Unix() - int64(*backInDays * 24.0 * 60.0 * 60.0)
     sort.Strings(transcodedObjs)
@@ -117,10 +133,17 @@ func main () {
         k := obj.Key
         if obj.LastModifiedUnix > unixTimeLowerBound {
             if !keyExists(transcodedObjs, k) {
-                log.Printf("Processing video '%s' in bucket '%s'\n", k, minioBucket)
-                process(&mc, minioBucket, k)
+                ret := worker.Spawn(func () {
+                    log.Printf("Processing video '%s' in bucket '%s'\n", k, minioBucket)
+                    process(&mc, minioBucket, k, dumpTranscoder)
+                })
+
+                if ret < 0 {
+                    break
+                }
             }
         }
     }
 
+    worker.WaitAll()
 }
