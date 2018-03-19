@@ -6,12 +6,12 @@ import (
     "log"
     "os"
     "sort"
-    "strconv"
     "strings"
     "time"
 
     "github.com/yunchih/s3-video-trans/pkg/minio"
     "github.com/yunchih/s3-video-trans/pkg/s3"
+    "github.com/yunchih/s3-video-trans/pkg/env"
 )
 
 var helpMsg = `
@@ -63,32 +63,6 @@ func help() {
     os.Exit(1)
 }
 
-func getEnv(key string) string {
-    value := os.Getenv(key)
-    if len(value) == 0 {
-        fmt.Printf("Environment variable '%s' not set", key)
-        help()
-    }
-    return value
-}
-
-func getEnvBool(key string) bool {
-    if getEnv(key) == "yes" {
-        return true
-    }
-    return false
-}
-
-func getEnvInt(key string) int {
-    val, err := strconv.Atoi(getEnv(key))
-    if err != nil {
-        fmt.Printf("Error while setting env '%s': ", key)
-        fmt.Println(err)
-        help()
-    }
-    return val
-}
-
 func main () {
     backInDays := flag.Float64("days", -1.0, "The range in days that we look back to search for possible targets")
     flag.Parse()
@@ -98,11 +72,17 @@ func main () {
         help()
     }
 
-    minioEndpoint  := getEnv("MINIO_ENDPOINT")
-    minioAccessID  := getEnv("MINIO_ID")
-    minioAccessKey := getEnv("MINIO_KEY")
-    minioUseSSL    := getEnvBool("MINIO_USESSL")
-    minioBucket    := getEnv("MINIO_BUCKET")
+
+    minioEndpoint  := env.Get("MINIO_ENDPOINT")
+    minioAccessID  := env.Get("MINIO_ID")
+    minioAccessKey := env.Get("MINIO_KEY")
+    minioUseSSL    := env.GetBool("MINIO_USESSL")
+    minioBucket    := env.Get("MINIO_BUCKET")
+
+    if minioEndpoint == "" || minioAccessID == "" || minioAccessKey == "" || minioBucket == "" {
+        help()
+        os.Exit(1)
+    }
 
     cfg := s3.Config{minioEndpoint, minioAccessID, minioAccessKey, minioUseSSL}
     mc, err := minio.New(cfg)
@@ -122,7 +102,6 @@ func main () {
     var transCandids s3.Objects
     for _, obj := range objs {
         k := obj.Key
-        log.Println(k, strings.Index(k, renamePrefix))
         if i := strings.Index(k, renamePrefix); i != -1 {
             strippedKey := k[:i] + k[i+len(renamePrefix):]
             transcodedObjs = append(transcodedObjs, strippedKey)
