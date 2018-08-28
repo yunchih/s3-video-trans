@@ -5,3 +5,4 @@ USER root
 
 ADD static-minio-video-transcoder /transcoder 
 ENTRYPOINT ["/transcoder"]
+WORKDIR /tmp
