@@ -43,6 +43,11 @@ func process(mc *minio.Minio, minioBucket string, objKey string, dumpTranscoder 
 		log.Fatal(err)
 	}
 
+    // Only process the file if it's a video
+    if !isVideo(tmpSrc.Name()) {
+        return
+    }
+
 	tmpDst := getTempFile()
 	defer os.Remove(tmpDst.Name())
 	log.Printf("Transcoding object '%s'\n", objKey)
